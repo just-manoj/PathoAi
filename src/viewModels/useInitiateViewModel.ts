@@ -1,19 +1,25 @@
 import { useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { generatePDF } from 'react-native-html-to-pdf';
 import Share from 'react-native-share';
 
 import { texts } from '../constants/texts';
 import { ModelType } from '../types/model';
+import { historyApi } from '../service';
 
 type AnalysisHistoryItem = {
   id: string;
-  timestamp: string;
-  model: ModelType;
+  slideImage: string;
   organ: string;
+  model: ModelType;
   clinicalContext: string;
-  imageUri: string | null;
+  observation: string;
+  preliminaryDiagnosis: string;
+  confidenceLevel: string;
+  disclaimer: string;
+  feedback: { id: string; rating: number; notes: string } | null;
+  createdAt: string;
 };
 
 export const useInitiateViewModel = () => {
@@ -66,24 +72,13 @@ export const useInitiateViewModel = () => {
 
     setIsAnalyzing(true);
 
-    // Simulate analysis completion.
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      setShowResult(true);
-
-      const timestamp = new Date().toLocaleString();
-      setHistory(prev => [
-        {
-          id: `${Date.now()}-${prev.length}`,
-          timestamp,
-          model: selectedModel,
-          organ,
-          clinicalContext,
-          imageUri,
-        },
-        ...prev,
-      ]);
-    }, 1200);
+    const formData = new FormData();
+    formData.append('slideImage', {
+      uri: imageUri,
+      name: 'slide.jpg',
+      type: 'image/jpeg',
+    });
+    formData.append('organ', organ);
   };
 
   const handleNewAnalysis = () => {
@@ -213,8 +208,15 @@ export const useInitiateViewModel = () => {
     }
   };
 
-  const handleOpenHistory = () => {
+  const handleOpenHistory = async () => {
     setIsHistoryVisible(true);
+    const res = await historyApi();
+    if (res.status) {
+      setHistory(res.data);
+    } else {
+      Alert.alert('Error', res.message);
+      setHistory([]);
+    }
   };
 
   const handleCloseHistory = () => {
