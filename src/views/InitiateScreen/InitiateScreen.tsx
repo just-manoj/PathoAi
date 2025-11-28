@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Modal,
   ScrollView,
@@ -19,9 +20,14 @@ import { useInitiateViewModel } from '../../viewModels/useInitiateViewModel';
 import { colors } from '../../theme/colors';
 import { texts } from '../../constants/texts';
 import { styles } from '../../styles/views/InitiateScreen.styles';
+import { formatDateTime } from '../../util/DateTimeFormat';
 
 const InitiateScreen = () => {
   const views = useInitiateViewModel();
+
+  useEffect(() => {
+    views.getModelLimitHandler();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.safeArea]}>
@@ -66,16 +72,34 @@ const InitiateScreen = () => {
             >
               {views.selectedModel === 'JR' && (
                 <View style={styles.modelSelectedTick}>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={colors.primary}
+                  />
                 </View>
               )}
               <Text style={styles.modelTitle}>🧪 JR PathoAI</Text>
               <Text style={styles.modelSubtitle}>For junior residents</Text>
               <View style={styles.usageBarContainer}>
                 <View style={styles.usageBarBg} />
-                <View style={[styles.usageBarFill, { width: '15%' }]} />
+                <View
+                  style={[
+                    styles.usageBarFill,
+                    {
+                      width: `${
+                        (views.modalLimitData.jrUsed /
+                          views.modalLimitData.jrLimit) *
+                        100
+                      }%`,
+                    },
+                  ]}
+                />
               </View>
-              <Text style={styles.usageText}>1/7 used today</Text>
+              <Text style={styles.usageText}>
+                {`${views.modalLimitData.jrUsed}/${views.modalLimitData.jrLimit}`}{' '}
+                used today
+              </Text>
             </Card>
           </TouchableOpacity>
 
@@ -93,16 +117,34 @@ const InitiateScreen = () => {
             >
               {views.selectedModel === 'SR' && (
                 <View style={styles.modelSelectedTick}>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={colors.primary}
+                  />
                 </View>
               )}
               <Text style={styles.modelTitle}>🧬 SR PathoAI</Text>
               <Text style={styles.modelSubtitle}>For senior residents</Text>
               <View style={styles.usageBarContainer}>
                 <View style={styles.usageBarBg} />
-                <View style={[styles.usageBarFill, { width: '35%' }]} />
+                <View
+                  style={[
+                    styles.usageBarFill,
+                    {
+                      width: `${
+                        (views.modalLimitData.srUsed /
+                          views.modalLimitData.srLimit) *
+                        100
+                      }%`,
+                    },
+                  ]}
+                />
               </View>
-              <Text style={styles.usageText}>2/3 used today</Text>
+              <Text style={styles.usageText}>
+                {`${views.modalLimitData.srUsed}/${views.modalLimitData.srLimit}`}{' '}
+                used today
+              </Text>
             </Card>
           </TouchableOpacity>
         </View>
@@ -123,7 +165,7 @@ const InitiateScreen = () => {
             <View style={styles.imageContainer}>
               {views.imageUri && (
                 <Image
-                  source={{ uri: views.imageUri }}
+                  source={{ uri: views.imageUri.imageUri }}
                   style={styles.previewImage}
                   resizeMode="cover"
                 />
@@ -171,30 +213,29 @@ const InitiateScreen = () => {
             <Card>
               <Text style={styles.resultLabel}>{texts.observationsLabel}</Text>
               <Text style={styles.resultBody}>
-                The image shows a collection of mature adipocytes with clear
-                cytoplasm and peripheral nuclei, surrounded by fibrous
-                connective tissue. There is no evidence of atypical cells or
-                significant inflammatory infiltrate.
+                {views.showResult.observation}
               </Text>
 
               <Text style={[styles.resultLabel, styles.resultSpacing]}>
                 {texts.preliminaryDiagnosisLabel}
               </Text>
               <Text style={styles.resultValue}>
-                {texts.preliminaryDiagnosisValue}
+                {views.showResult.preliminaryDiagnosis}
               </Text>
 
               <Text style={[styles.resultLabel, styles.resultSpacing]}>
                 {texts.confidenceLabel}
               </Text>
               <Text style={[styles.resultValue, styles.resultValueSuccess]}>
-                {texts.confidenceValue}
+                {views.showResult.confidenceLevel}
               </Text>
 
               <Text style={[styles.resultLabel, styles.resultSpacing]}>
                 {texts.disclaimerLabel}
               </Text>
-              <Text style={styles.disclaimer}>{texts.disclaimerBody}</Text>
+              <Text style={styles.disclaimer}>
+                {views.showResult.disclaimer}
+              </Text>
 
               <PrimaryButton
                 label={texts.newAnalysis}
@@ -207,14 +248,28 @@ const InitiateScreen = () => {
         )}
 
         {views.showResult && (
-          <PrimaryButton
-            label={views.isSharing ? texts.sharePreparing : texts.shareReport}
-            onPress={views.onShareReport}
-            disabled={views.isSharing}
-            leftIcon={
-              <Icon name="share-2" size={18} color={colors.textOnPrimary} />
-            }
-          />
+          <>
+            <PrimaryButton
+              label={'Feedback'}
+              onPress={views.onOpenFeedback}
+              style={{ marginBottom: 10 }}
+              leftIcon={
+                <Icon
+                  name="message-square"
+                  size={18}
+                  color={colors.textOnPrimary}
+                />
+              }
+            />
+            <PrimaryButton
+              label={views.isSharing ? texts.sharePreparing : texts.shareReport}
+              onPress={views.onShareReport}
+              disabled={views.isSharing}
+              leftIcon={
+                <Icon name="share-2" size={18} color={colors.textOnPrimary} />
+              }
+            />
+          </>
         )}
 
         <Modal
@@ -247,7 +302,7 @@ const InitiateScreen = () => {
                   views.history.map(item => (
                     <View key={item.id} style={styles.historyItem}>
                       <Text style={styles.historyItemMeta}>
-                        {item.timestamp} •{' '}
+                        {formatDateTime(item.createdAt)} •{' '}
                         {item.model === 'JR' ? 'JR PathoAI' : 'SR PathoAI'}
                       </Text>
 
@@ -269,10 +324,7 @@ const InitiateScreen = () => {
                         {texts.observationsLabel}
                       </Text>
                       <Text style={styles.historyItemContext}>
-                        The image shows a collection of mature adipocytes with
-                        clear cytoplasm and peripheral nuclei, surrounded by
-                        fibrous connective tissue. There is no evidence of
-                        atypical cells or significant inflammatory infiltrate.
+                        {item.observation}
                       </Text>
 
                       <Text style={styles.historyItemLabel}>
@@ -289,12 +341,42 @@ const InitiateScreen = () => {
                         {texts.confidenceValue}
                       </Text>
 
+                      {item.feedback ? (
+                        <View style={styles.historyFeedbackContainer}>
+                          <View style={styles.historyFeedbackStars}>
+                            {[1, 2, 3, 4, 5].map(i => (
+                              <Ionicons
+                                key={i}
+                                name={
+                                  i <= (item.feedback?.rating || 0)
+                                    ? 'star'
+                                    : 'star-outline'
+                                }
+                                size={16}
+                                color={
+                                  i <= (item.feedback?.rating || 0)
+                                    ? colors.primary
+                                    : colors.borderMuted
+                                }
+                                style={{ marginRight: 4 }}
+                              />
+                            ))}
+                          </View>
+
+                          <Text style={styles.historyFeedbackNotes}>
+                            Feedback: {item.feedback?.notes || '-'}
+                          </Text>
+                        </View>
+                      ) : null}
+
                       <Text style={styles.historyImageBadge}>
-                        Image: {item.imageUri ? 'Attached' : 'Not attached'}
+                        Image: {item.slideImage ? 'Attached' : 'Not attached'}
                       </Text>
-                      {item.imageUri ? (
+                      {item.slideImage ? (
                         <Image
-                          source={{ uri: item.imageUri }}
+                          source={{
+                            uri: `data:image/jpeg;base64,${item.slideImage}`,
+                          }}
                           style={styles.historyThumb}
                           resizeMode="cover"
                         />
@@ -306,7 +388,95 @@ const InitiateScreen = () => {
             </View>
           </View>
         </Modal>
+
+        {/* Feedback Modal */}
+        <Modal
+          transparent
+          animationType="slide"
+          visible={views.feedbackVisible}
+          onRequestClose={views.onCloseFeedback}
+        >
+          <View style={styles.historyOverlay}>
+            <View style={styles.feedbackSheet}>
+              <View style={styles.historyHeaderRow}>
+                <Text style={styles.historyTitle}>Feedback</Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={views.onCloseFeedback}
+                >
+                  <Icon name="x" size={20} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ paddingHorizontal: 8 }}>
+                <Text style={{ marginBottom: 8, color: colors.textSecondary }}>
+                  Rate the result
+                </Text>
+                <View style={styles.starRow}>
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <TouchableOpacity
+                      key={i}
+                      activeOpacity={0.8}
+                      onPress={() => views.setFeedbackRating(i)}
+                      style={styles.starTouchable}
+                    >
+                      <Ionicons
+                        name={
+                          i <= views.feedbackRating ? 'star' : 'star-outline'
+                        }
+                        size={28}
+                        color={
+                          i <= views.feedbackRating
+                            ? colors.primary
+                            : colors.borderMuted
+                        }
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <LabeledTextInput
+                  label={'Notes'}
+                  placeholder={'Add notes (optional)'}
+                  multiline
+                  value={views.feedbackNotes}
+                  onChangeText={views.setFeedbackNotes}
+                />
+
+                <View style={styles.feedbackButtons}>
+                  <PrimaryButton
+                    label={'Cancel'}
+                    onPress={views.onCloseFeedback}
+                    style={styles.feedbackCancel}
+                    labelStyle={{ color: colors.primary }}
+                  />
+                  <PrimaryButton
+                    label={'Submit'}
+                    onPress={views.onSubmitFeedback}
+                    style={styles.feedbackSubmit}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
+      {views.isLoading && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.2)',
+          }}
+        >
+          <ActivityIndicator size={'large'} color={colors.primary} />
+        </View>
+      )}
     </SafeAreaView>
   );
 };

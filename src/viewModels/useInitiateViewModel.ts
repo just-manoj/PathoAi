@@ -6,7 +6,7 @@ import Share from 'react-native-share';
 
 import { texts } from '../constants/texts';
 import { ModelType } from '../types/model';
-import { historyApi } from '../service';
+import { analyzeApi, feedbackApi, historyApi, modelLimitApi } from '../service';
 
 type AnalysisHistoryItem = {
   id: string;
@@ -22,16 +22,47 @@ type AnalysisHistoryItem = {
   createdAt: string;
 };
 
+type ResultType = {
+  id: string;
+  slideImage: string;
+  organ: string;
+  clinicalContext: string;
+  model: string;
+  observation: string;
+  preliminaryDiagnosis: string;
+  confidenceLevel: string;
+  disclaimer: string;
+  createdAt: string;
+  feedback?: { id: string; rating: number; notes: string } | null;
+};
+
+type Image = {
+  fileName: string;
+  type: string;
+  imageUri: string;
+};
+
 export const useInitiateViewModel = () => {
+  const [modalLimitData, setModalLimitData] = useState({
+    jrUsed: 0,
+    srUsed: 0,
+    jrLimit: 0,
+    srLimit: 0,
+  });
   const [selectedModel, setSelectedModel] = useState<ModelType>('SR');
   const [organ, setOrgan] = useState('');
   const [clinicalContext, setClinicalContext] = useState('');
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUri, setImageUri] = useState<Image | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [showResult, setShowResult] = useState<ResultType | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  // Feedback modal state
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [feedbackNotes, setFeedbackNotes] = useState<string>('');
 
   const hasImage = !!imageUri;
 
@@ -42,6 +73,18 @@ export const useInitiateViewModel = () => {
 
   const handleSelectModel = (model: ModelType) => {
     setSelectedModel(model);
+  };
+
+  const getModelLimitHandler = async () => {
+    setIsLoading(true);
+    const res = await modelLimitApi();
+    if (res.status) {
+      setModalLimitData({ ...res.data });
+      setIsLoading(false);
+    } else {
+      Alert.alert('Error', res.message);
+      setIsLoading(false);
+    }
   };
 
   const handleUpload = async () => {
@@ -56,8 +99,14 @@ export const useInitiateViewModel = () => {
       }
 
       const asset = result.assets?.[0];
+      console.log('ass', asset);
+
       if (asset?.uri) {
-        setImageUri(asset.uri);
+        setImageUri({
+          imageUri: asset.uri,
+          fileName: asset.fileName || 'slide.jpg',
+          type: asset.type || 'image/jpeg',
+        });
       }
     } catch (e) {
       // Could be surfaced via UI later
@@ -65,8 +114,16 @@ export const useInitiateViewModel = () => {
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!canAnalyze) {
+      return;
+    }
+    if (!imageUri) {
+      Alert.alert('Validation error', 'Pick a image for analysis');
+      return;
+    }
+    if (!organ) {
+      Alert.alert('Validation error', 'Enter the organ type for analysis');
       return;
     }
 
@@ -74,18 +131,35 @@ export const useInitiateViewModel = () => {
 
     const formData = new FormData();
     formData.append('slideImage', {
-      uri: imageUri,
-      name: 'slide.jpg',
-      type: 'image/jpeg',
+      uri: imageUri.imageUri,
+      name: imageUri.fileName,
+      type: imageUri.type,
     });
     formData.append('organ', organ);
+    formData.append('clinicalContext', clinicalContext);
+    formData.append('model', selectedModel);
+
+    const res = await analyzeApi(formData);
+    console.log('====================================');
+    console.log(res);
+    console.log('====================================');
+    if (res.status) {
+      setShowResult({
+        ...res.data,
+      });
+      setIsAnalyzing(false);
+      getModelLimitHandler();
+    } else {
+      Alert.alert('Error', res.message);
+      setIsAnalyzing(false);
+    }
   };
 
   const handleNewAnalysis = () => {
     setOrgan('');
     setClinicalContext('');
     setImageUri(null);
-    setShowResult(false);
+    setShowResult(null);
   };
 
   const handleShareReport = async () => {
@@ -103,7 +177,7 @@ export const useInitiateViewModel = () => {
         ? `
           <h2>Slide Image</h2>
           <div class="image-wrapper">
-            <img src="${imageUri}" />
+            <img src="${imageUri.imageUri}" />
           </div>
         `
         : '';
@@ -163,22 +237,22 @@ export const useInitiateViewModel = () => {
 
             <h2>${texts.observationsLabel.replace(':', '')}</h2>
             <div class="card">
-              <p>The image shows a collection of mature adipocytes with clear cytoplasm and peripheral nuclei, surrounded by fibrous connective tissue. There is no evidence of atypical cells or significant inflammatory infiltrate.</p>
+              <p>${showResult?.observation}</p>
             </div>
 
             <h2>${texts.preliminaryDiagnosisLabel.replace(':', '')}</h2>
             <div class="card">
-              <p><strong>${texts.preliminaryDiagnosisValue}</strong></p>
+              <p><strong>${showResult?.preliminaryDiagnosis}</strong></p>
             </div>
 
             <h2>${texts.confidenceLabel.replace(':', '')}</h2>
             <div class="card">
-              <span class="tag tag-green">${texts.confidenceValue}</span>
+              <span class="tag tag-green">${showResult?.confidenceLevel}</span>
             </div>
 
             <h2>${texts.disclaimerLabel.replace(':', '')}</h2>
             <div class="card">
-              <p class="disclaimer">${texts.disclaimerBody}</p>
+              <p class="disclaimer">${showResult?.disclaimer}</p>
             </div>
           </body>
         </html>
@@ -209,18 +283,61 @@ export const useInitiateViewModel = () => {
   };
 
   const handleOpenHistory = async () => {
-    setIsHistoryVisible(true);
+    setIsLoading(true);
     const res = await historyApi();
     if (res.status) {
       setHistory(res.data);
+      setIsHistoryVisible(true);
+      setIsLoading(false);
     } else {
       Alert.alert('Error', res.message);
       setHistory([]);
+      setIsLoading(false);
     }
   };
 
   const handleCloseHistory = () => {
     setIsHistoryVisible(false);
+  };
+
+  const handleOpenFeedback = () => {
+    setFeedbackVisible(true);
+  };
+
+  const handleCloseFeedback = () => {
+    setFeedbackVisible(false);
+    setFeedbackRating(0);
+    setFeedbackNotes('');
+  };
+
+  const handleSubmitFeedback = async () => {
+    setIsLoading(true);
+    if (!feedbackRating) {
+      Alert.alert('Validation error', 'Must add rating');
+      return;
+    }
+
+    if (!feedbackNotes) {
+      Alert.alert('Validation error', 'Must add your note');
+      return;
+    }
+
+    if (!showResult) {
+      return;
+    }
+
+    const res = await feedbackApi(
+      showResult?.id,
+      feedbackRating,
+      feedbackNotes,
+    );
+
+    if (res.status) {
+      handleCloseFeedback();
+      Alert.alert('Success', res.message);
+    } else {
+      Alert.alert('Success', res.message);
+    }
   };
 
   return {
@@ -235,6 +352,8 @@ export const useInitiateViewModel = () => {
     history,
     isHistoryVisible,
     canAnalyze,
+    modalLimitData,
+    isLoading,
     setOrgan,
     setClinicalContext,
     onSelectModel: handleSelectModel,
@@ -244,5 +363,14 @@ export const useInitiateViewModel = () => {
     onShareReport: handleShareReport,
     onOpenHistory: handleOpenHistory,
     onCloseHistory: handleCloseHistory,
+    onOpenFeedback: handleOpenFeedback,
+    onCloseFeedback: handleCloseFeedback,
+    onSubmitFeedback: handleSubmitFeedback,
+    feedbackVisible,
+    feedbackRating,
+    feedbackNotes,
+    setFeedbackRating,
+    setFeedbackNotes,
+    getModelLimitHandler,
   };
 };

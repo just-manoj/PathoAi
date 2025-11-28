@@ -37,7 +37,7 @@ export const PrimaryButton = ({
     >
       <View style={styles.contentRow}>
         {leftIcon && <View style={styles.iconWrapper}>{leftIcon}</View>}
-        <Text style={[styles.label, labelStyle]}>{label}</Text>
+      <Text style={[styles.label, labelStyle]}>{label}</Text>
       </View>
     </TouchableOpacity>
   );

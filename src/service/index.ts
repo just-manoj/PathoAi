@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASEURL = 'http://127.0.0.1:5000';
+const BASEURL = 'https://pathoai-api-production.up.railway.app';
 
 export const modelLimitApi = async () => {
   try {
@@ -8,6 +8,7 @@ export const modelLimitApi = async () => {
     return response.data;
   } catch (error: any) {
     return (
+      error?.response?.data ||
       error?.response || { status: false, message: 'Something went wrong' }
     );
   }
@@ -15,17 +16,11 @@ export const modelLimitApi = async () => {
 
 export const historyApi = async () => {
   try {
-    console.log('====================================');
-    console.log(BASEURL);
-    console.log('====================================');
     const response = await axios.get(`${BASEURL}/history`);
-    console.log('response.data', response.data);
-
     return response.data;
   } catch (error: any) {
-    console.log('err', error);
-
     return (
+      error?.response?.data ||
       error?.response || { status: false, message: 'Something went wrong' }
     );
   }
@@ -33,10 +28,45 @@ export const historyApi = async () => {
 
 export const analyzeApi = async (formData: FormData) => {
   try {
-    const response = await axios.post(`${BASEURL}/analyze`, formData);
+    const response = await axios.post(`${BASEURL}/analyze`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Accept: 'application/json',
+      },
+    });
+    console.log('res', response);
+
+    return response.data;
+  } catch (error: any) {
+    console.log('res', error?.response);
+
+    return (
+      error?.response?.data ||
+      error?.response || { status: false, message: 'Something went wrong' }
+    );
+  }
+};
+
+export const feedbackApi = async (
+  id: string,
+  rating: number,
+  notes: string,
+) => {
+  try {
+    const response = await axios.post(
+      `${BASEURL}/feedback?id=${id}`,
+      { rating, notes },
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Accept: 'application/json',
+        },
+      },
+    );
     return response.data;
   } catch (error: any) {
     return (
+      error?.response?.data ||
       error?.response || { status: false, message: 'Something went wrong' }
     );
   }

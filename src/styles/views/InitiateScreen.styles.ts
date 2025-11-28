@@ -180,6 +180,15 @@ export const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 20,
   },
+  feedbackSheet: {
+    maxHeight: '55%',
+    backgroundColor: colors.cardBackground,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 20,
+  },
   historyHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,7 +252,61 @@ export const styles = StyleSheet.create({
     top: 10,
     right: 10,
   },
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  starTouchable: {
+    marginRight: 6,
+  },
+  feedbackButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  feedbackCancel: {
+    minWidth: 100,
+    backgroundColor: colors.screenBackground,
+    marginTop: 0,
+  },
+  feedbackSubmit: {
+    minWidth: 100,
+    alignSelf: 'flex-end',
+    marginTop: 0,
+  },
+  existingFeedback: {
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 10,
+  },
+  existingFeedbackTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  existingFeedbackNotes: {
+    marginTop: 8,
+    fontSize: 13,
+    color: colors.textBody,
+    lineHeight: 18,
+  },
+  historyFeedbackContainer: {
+    marginTop: 8,
+    paddingVertical: 6,
+    backgroundColor: colors.cardBackground,
+  },
+  historyFeedbackStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  historyFeedbackNotes: {
+    fontSize: 13,
+    color: colors.textBody,
+    lineHeight: 18,
+  },
 });
-
-
-
